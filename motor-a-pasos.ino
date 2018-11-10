@@ -31,32 +31,30 @@ void setup()
 }
  
  void rotate_clockwise()  {
-  while(1)  {
+  int index = 0;
+  while(index<280)  {
   for (int i = 0; i < 4; i++)
     {
       digitalWrite(IN1, paso[i][0]);
       digitalWrite(IN2, paso[i][1]);
       digitalWrite(IN3, paso[i][2]);
       digitalWrite(IN4, paso[i][3]);
-      if(1 == digitalRead(INTERRUPT_PIN_WISE)) {
-        return 0;
-      }
+      index++;
       delayMicroseconds(2250);
     }
   }
  }
 
   void rotate_counterclockwise()  {
-    while(1)  {
+    int index = 0;
+    while(index<280)  {
     for (int i = 3; i >= 0; i--)
     {
       digitalWrite(IN1, paso[i][0]);
       digitalWrite(IN2, paso[i][1]);
       digitalWrite(IN3, paso[i][2]);
       digitalWrite(IN4, paso[i][3]);
-      if(1 == digitalRead(INTERRUPT_PIN_COUNTER)) {
-        return 0;
-      }
+      index++;
       delayMicroseconds(2250);
     }
     }
