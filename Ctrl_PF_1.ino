@@ -36,7 +36,8 @@ int motor_y(int ref_y);
 //----------------------------------------------
 //--------------Global Variables----------------
 //----------------------------------------------
-int ref = 15;
+int ref_y = 15;
+int ref_x = 25;
 
 //----------------------------------------------
 //-----------------Variables--------------------
@@ -83,44 +84,95 @@ void setup() {
 //-------------------Loop-----------------------
 //----------------------------------------------
 void loop() {
-  int motor_status = motor_x(ref);
-  Serial.println("Distancia "); //Imprimimos "Distancia" sobre el Monitor Serial
-  Serial.println(motor_status); //Mostramos el Valor de la distancia real sobre el Monitor Serial  
-  if(motor_status==-1 && ref==15)
+
+  int motor_status_x = motor_x(ref_x);
+  Serial.print(" Distancia X: "); //Imprimimos "Distancia" sobre el Monitor Serial
+  Serial.print(motor_status_x); //Mostramos el Valor de la distancia real sobre el Monitor Serial  
+  if(motor_status_x==-1 && ref_y==20)
   {
-    ref = 25;
+    ref_y = 25;
     rotate_clockwise();
   }
-  else if(motor_status==-1 && ref==25)
+  else if(motor_status_x==-1 && ref_y==25)
   {
-    ref = 15;
+    ref_y = 20;
     rotate_counterclockwise();
   }
-  delay(1000); //Cada que Tiempo se imprimira el valor de la distancia
+  delay(200); //Cada que Tiempo se imprimira el valor de la distancia
+  
+  int motor_status_y = motor_y(ref_y);
+  Serial.print(" - Distancia Y: "); //Imprimimos "Distancia" sobre el Monitor Serial
+  Serial.println(motor_status_y); //Mostramos el Valor de la distancia real sobre el Monitor Serial  
+  if(motor_status_y==-1 && ref_y==15)
+  {
+    ref_y = 20;
+    rotate_clockwise();
+  }
+  else if(motor_status_y==-1 && ref_y==20)
+  {
+    ref_y = 15;
+    rotate_counterclockwise();
+  }  
+  delay(200); //Cada que Tiempo se imprimira el valor de la distancia
 }
 
 //----------------------------------------------
 //------------Distance Measurements-------------
 //----------------------------------------------
 int Medir_distancia_x(){
-  //Para el ultrasonico 1 "x"
-  digitalWrite(Trigger_1,LOW); //Para darle estabilización al sensor
-  delayMicroseconds(5); //Tiempo de 5 micro segundos
-  digitalWrite(Trigger_1, HIGH); //Enviamos el pulso ultrasónico para activar el sensor
-  delayMicroseconds(10); //Con una duracion de 10 micro segundos
-  tiempo_x = pulseIn(Echo_1, HIGH); //Función para medir la longitud del pulso entrante, mide el tiempo transcurrido de ida y vuelta
-  distancia_x = int(0.017*tiempo_x); //Fórmula para calcular la distancia obteniendo un valor entero
-  return distancia_x; 
+  int distancia_x_array[] = {0, 0, 0, 0, 0};
+  for(int i = 1; i<=5; i++)
+  {
+    //Para el ultrasonico 1 "x"
+    digitalWrite(Trigger_1,LOW); //Para darle estabilización al sensor
+    delayMicroseconds(5); //Tiempo de 5 micro segundos
+    digitalWrite(Trigger_1, HIGH); //Enviamos el pulso ultrasónico para activar el sensor
+    delayMicroseconds(10); //Con una duracion de 10 micro segundos
+    tiempo_x = pulseIn(Echo_1, HIGH); //Función para medir la longitud del pulso entrante, mide el tiempo transcurrido de ida y vuelta
+    distancia_x = int(0.017*tiempo_x); //Fórmula para calcular la distancia obteniendo un valor entero
+    if(distancia_x>35 && distancia_x<1)
+    {
+      i--;
+    }
+    else
+    {
+      distancia_x_array[i-1] = (int) distancia_x;
+    }
+  }
+//  Serial.println(distancia_x_array[0]);
+//  Serial.println(distancia_x_array[1]);
+//  Serial.println(distancia_x_array[2]);
+//  Serial.println(distancia_x_array[3]);
+//  Serial.println(distancia_x_array[4]);
+  return (int)(distancia_x_array[0]+distancia_x_array[1]+distancia_x_array[2]+distancia_x_array[3]+distancia_x_array[4])/5; 
 }
 int Medir_distancia_y(){
-  //Para el ultrasonico 1 "y"
-  digitalWrite(Trigger_2,LOW); //Para darle estabilización al sensor
-  delayMicroseconds(5); //Tiempo de 5 micro segundos
-  digitalWrite(Trigger_2, HIGH); //Enviamos el pulso ultrasónico para activar el sensor
-  delayMicroseconds(10); //Con una duracion de 10 micro segundos
-  tiempo_y = pulseIn(Echo_2, HIGH); //Función para medir la longitud del pulso entrante, mide el tiempo transcurrido de ida y vuelta
-  distancia_y = int(0.017*tiempo_y); //Fórmula para calcular la distancia obteniendo un valor entero
-  return distancia_y; 
+  int distancia_y_array[5] = {0, 0, 0, 0, 0};
+  int i = 0;
+  for(i = 1; i<=5; i++)
+  {
+    //Para el ultrasonico 1 "y"
+    digitalWrite(Trigger_2,LOW); //Para darle estabilización al sensor
+    delayMicroseconds(5); //Tiempo de 5 micro segundos
+    digitalWrite(Trigger_2, HIGH); //Enviamos el pulso ultrasónico para activar el sensor
+    delayMicroseconds(10); //Con una duracion de 10 micro segundos
+    tiempo_y = pulseIn(Echo_2, HIGH); //Función para medir la longitud del pulso entrante, mide el tiempo transcurrido de ida y vuelta
+    distancia_y = int(0.017*tiempo_y); //Fórmula para calcular la distancia obteniendo un valor entero
+    if(distancia_y>35 && distancia_y<1)
+    {
+      i--;
+    }
+    else
+    {
+      distancia_y_array[i-1] = (int) distancia_y;
+    }
+  }
+//  Serial.println(distancia_y_array[0]);
+//  Serial.println(distancia_y_array[1]);
+//  Serial.println(distancia_y_array[2]);
+//  Serial.println(distancia_y_array[3]);
+//  Serial.println(distancia_y_array[4]);
+  return (int)(distancia_y_array[0]+distancia_y_array[1]+distancia_y_array[2]+distancia_y_array[3]+distancia_y_array[4])/5; 
 }
 
 //----------------------------------------------
@@ -217,13 +269,13 @@ int motor_y(int ref_y)
 }
   void motor_y_near()
  {
-    digitalWrite(Mtr_ctr1_y,HIGH);
-    digitalWrite(Mtr_ctr2_y,LOW);
+    digitalWrite(Mtr_ctr1_y,LOW);
+    digitalWrite(Mtr_ctr2_y,HIGH);
  }
  void motor_y_far()
  {
-    digitalWrite(Mtr_ctr1_y,LOW);
-    digitalWrite(Mtr_ctr2_y,HIGH);
+    digitalWrite(Mtr_ctr1_y,HIGH);
+    digitalWrite(Mtr_ctr2_y,LOW);
  }
 void stop_motor_y()
 {
