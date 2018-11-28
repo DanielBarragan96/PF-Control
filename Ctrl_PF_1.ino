@@ -1,53 +1,3 @@
-//----------------------------------------------
-//-----------------Constants--------------------
-//----------------------------------------------
-#define X_MIN_LIM 5
-#define X_MAX_LIM 30
-#define Y_MIN_LIM 10
-#define Y_MAX_LIM 25
-
-//----------------------------------------------
-//--------------Step Sequence-------------------
-//----------------------------------------------
-int paso [4][4] =
-{
-  {1, 0, 0, 0},
-  {0, 1, 0, 0},
-  {0, 0, 1, 0},
-  {0, 0, 0, 1}
-};
-
-//----------------------------------------------
-//-----------------Functions--------------------
-//----------------------------------------------
-void rotate_clockwise();
-void rotate_counterclockwise();
-int Medir_distancia_x();
-int Medir_distancia_y();
-int motor_x_near(int ref);
-int motor_x_far(int ref);
-void motor_y_near();
-void motor_y_far();
-void stop_motor_x();
-void stop_motor_y();
-int motor_x(int ref);
-int motor_y(int ref_y);
-
-//----------------------------------------------
-//--------------Global Variables----------------
-//----------------------------------------------
-int ref_y = 15;
-int ref_x = 25;
-
-//----------------------------------------------
-//-----------------Variables--------------------
-//----------------------------------------------
-int Mtr_ctr1_x   = 2;    int Mtr_ctr2_x   = 3;    int Mtr_ctr1_y   = 4; 
-int Mtr_ctr2_y   = 5;    int Echo_1       = 6;    int Trigger_1    = 7;   
-int Echo_2       = 8;    int Trigger_2    = 9;    int StepMtr_ctr1 = 10; 
-int StepMtr_ctr2 = 11;   int StepMtr_ctr3 = 12;   int StepMtr_ctr4 = 13;
-long distancia_x;        long tiempo_x;           long distancia_y; 
-long tiempo_y;
 
 //----------------------------------------------
 //--------------Initialization------------------
@@ -78,6 +28,8 @@ void setup() {
   pinMode(StepMtr_ctr2, OUTPUT); 
   pinMode(StepMtr_ctr3, OUTPUT); 
   pinMode(StepMtr_ctr4, OUTPUT);  
+  motor_y_near();
+  motor_x_near();
 }
 
 //----------------------------------------------
@@ -85,35 +37,52 @@ void setup() {
 //----------------------------------------------
 void loop() {
 
-  int motor_status_x = motor_x(ref_x);
-  Serial.print(" Distancia X: "); //Imprimimos "Distancia" sobre el Monitor Serial
-  Serial.print(motor_status_x); //Mostramos el Valor de la distancia real sobre el Monitor Serial  
-  if(motor_status_x==-1 && ref_y==20)
-  {
-    ref_y = 25;
-    rotate_clockwise();
-  }
-  else if(motor_status_x==-1 && ref_y==25)
-  {
-    ref_y = 20;
-    rotate_counterclockwise();
-  }
-  delay(200); //Cada que Tiempo se imprimira el valor de la distancia
+    int lectura, cm;
+ 
+  lectura = analogRead(ir_sensor0); // lectura del sensor 0
+  cm = pow(3027.4 / lectura, 1.2134); // conversión a centímetros
+  Serial.print("Sensor 0: ");
+  Serial.println(cm); // lectura del sensor 0
+  delay(500); // tiempo de espera
   
-  int motor_status_y = motor_y(ref_y);
-  Serial.print(" - Distancia Y: "); //Imprimimos "Distancia" sobre el Monitor Serial
-  Serial.println(motor_status_y); //Mostramos el Valor de la distancia real sobre el Monitor Serial  
-  if(motor_status_y==-1 && ref_y==15)
-  {
-    ref_y = 20;
-    rotate_clockwise();
-  }
-  else if(motor_status_y==-1 && ref_y==20)
-  {
-    ref_y = 15;
-    rotate_counterclockwise();
-  }  
-  delay(200); //Cada que Tiempo se imprimira el valor de la distancia
+
+//    int x = Medir_distancia_x();
+//    int y = Medir_distancia_y();
+//  Serial.print(" Distancia X: "); //Imprimimos "Distancia" sobre el Monitor Serial
+//  Serial.print(x); //Mostramos el Valor de la distancia real sobre el Monitor Serial  
+//  Serial.print(" - Distancia Y: "); //Imprimimos "Distancia" sobre el Monitor Serial
+//  Serial.println(y); //Mostramos el Valor de la distancia real sobre el Monitor Serial  
+
+  
+//  int motor_status_x = motor_x(ref_x);
+//  Serial.print(" Distancia X: "); //Imprimimos "Distancia" sobre el Monitor Serial
+//  Serial.print(motor_status_x); //Mostramos el Valor de la distancia real sobre el Monitor Serial  
+//  if(motor_status_x==-1 && ref_y==20)
+//  {
+//    ref_y = 25;
+//    rotate_clockwise();
+//  }
+//  else if(motor_status_x==-1 && ref_y==25)
+//  {
+//    ref_y = 20;
+//    rotate_counterclockwise();
+//  }
+//  delay(200); //Cada que Tiempo se imprimira el valor de la distancia
+//  
+//  int motor_status_y = motor_y(ref_y);
+//  Serial.print(" - Distancia Y: "); //Imprimimos "Distancia" sobre el Monitor Serial
+//  Serial.println(motor_status_y); //Mostramos el Valor de la distancia real sobre el Monitor Serial  
+//  if(motor_status_y==-1 && ref_y==15)
+//  {
+//    ref_y = 20;
+//    rotate_clockwise();
+//  }
+//  else if(motor_status_y==-1 && ref_y==20)
+//  {
+//    ref_y = 15;
+//    rotate_counterclockwise();
+//  }  
+//  delay(200); //Cada que Tiempo se imprimira el valor de la distancia
 }
 
 //----------------------------------------------
@@ -282,4 +251,3 @@ void stop_motor_y()
     digitalWrite(Mtr_ctr1_y,LOW);
     digitalWrite(Mtr_ctr2_y,LOW);  
 }
-
