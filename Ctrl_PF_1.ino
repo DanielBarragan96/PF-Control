@@ -1,4 +1,136 @@
 
+#include <TimerOne.h>
+
+//----------------------------------------------
+//-----------------Constants--------------------
+//----------------------------------------------
+#define X_MIN_LIM 5
+#define X_MAX_LIM 30
+#define Y_MIN_LIM 10
+#define Y_MAX_LIM 25
+#define T_STEP    0.0005  //T usada para el PID
+#define PWM1 6
+#define PWM1 5
+
+//----------------------------------------------
+//-------------GANANCIAS PID--------------------
+//----------------------------------------------
+#define KP        0.08    //valor de KP
+#define KI        0.005   //valor de KI
+#define KD        0.00002 //valor de KD
+
+//----------------------------------------------
+//--------------Step Sequence-------------------
+//----------------------------------------------
+int paso [4][4] =
+{
+  {1, 0, 0, 0},
+  {0, 1, 0, 0},
+  {0, 0, 1, 0},
+  {0, 0, 0, 1}
+};
+
+//----------------------------------------------
+//-----------------Functions--------------------
+//----------------------------------------------
+void rotate_clockwise();
+void rotate_counterclockwise();
+int Medir_distancia_x();
+int Medir_distancia_y();
+void motor_x_near(int freq_x);
+void motor_x_far(int freq_x);
+void motor_y_near(int freq_y);
+void motor_y_far(int freq_y);
+void stop_motor_x();
+void stop_motor_y();
+int motor_x(int ref);
+int motor_y(int ref_y);
+
+//----------------------------------------------
+//--------------Global Variables----------------
+//----------------------------------------------
+int ref_y = 15;
+int ref_x = 25;
+
+//----------------------------------------------
+//--------------------PINS----------------------
+//----------------------------------------------
+int Mtr_ctr1_x   = 5;    int Mtr_ctr2_x   = 6;    
+int Mtr_ctr1_y   = 10;   int Mtr_ctr2_y   = 11;    
+int Echo_1       = 2;    int Trigger_1    = 3;   
+int Echo_2       = 7;    int Trigger_2    = 8;    
+int StepMtr_ctr1 = 4;    int StepMtr_ctr2 = 9;   
+int StepMtr_ctr3 = 12;   int StepMtr_ctr4 = 13;
+
+//----------------------------------------------
+//-----------------Variables--------------------
+//----------------------------------------------
+long distancia_x;        long tiempo_x;           
+long distancia_y;        long tiempo_y;
+int ir_sensor0 = A0;
+int counter =                     0.00;
+float ref =                       0.00; 
+//Errores
+float ek =                       0.0;    //Error actual
+float ek_1 =                     0.0;    //Error anterior
+//Variables del PID
+double UP =                       0.0;
+double UI =                       0.0;
+double UD =                       0.0;
+//Entradas
+double Uk =                       0.0;    //Entrada actual
+double Uk_1 =                     0.0;    //Entrada pasada
+double Uk_calc =                  0.0;    //Entrada actual
+
+
+//----------------------------------------------
+//---------------Interrupción-------------------
+//----------------------------------------------
+void ISR_func() {
+//  counter++;
+//  if(counter >= SIN_SIZE)
+//  {
+//    counter = 1;
+//  }
+
+    //ref = SIN_FUNC[counter];
+    int pos_x = Medir_distancia_x();
+    ek = ref_x - pos_x;                      //Error actual
+
+    if(ek==0)
+    {
+      if(ref_x==25)
+        ref_x = 15;
+      else
+        ref_x = 25;   
+    }
+    //PID
+    UP = KP*ek;
+    UI = (Uk_1 + KI*T_STEP*ek);
+    UD = (KD*(ek - ek_1)/T_STEP);
+    Uk = UP;// + UI + UD;//Entrada necesaria
+    Uk_1 = UI;                                            //Actualizar valor de la entrada
+    Uk_calc = Uk;
+         
+    int cicle = (255*Uk/8.5);
+    
+    if(255<cicle) cicle = 255;
+    if(0>cicle) cicle = 0;
+
+    if(ek>0)
+    {
+      motor_x_near(cicle);
+    }
+    else if(ek<0)
+    {
+      motor_x_far(cicle);
+    }
+    
+    //Actualizar valores anterior como los actuales
+    ek_1 = ek;                                            //Actualizar valor del error
+}
+
+
 //----------------------------------------------
 //--------------Initialization------------------
 //----------------------------------------------
@@ -7,13 +139,13 @@ void setup() {
   //imprimir en puerto serial
   Serial.begin(9600);
   
-  // Para el motor 1
-  pinMode(Mtr_ctr1_x, OUTPUT);
-  pinMode(Mtr_ctr1_y, OUTPUT);
-  
-  // Para el motor 2
-  pinMode(Mtr_ctr2_x, OUTPUT);
-  pinMode(Mtr_ctr2_y, OUTPUT);
+//  // Para el motor 1
+//  pinMode(Mtr_ctr1_x, OUTPUT);
+//  pinMode(Mtr_ctr1_y, OUTPUT);
+//  
+//  // Para el motor 2
+//  pinMode(Mtr_ctr2_x, OUTPUT);
+//  pinMode(Mtr_ctr2_y, OUTPUT);
 
   // Para el ultrasonico 1
   pinMode(Trigger_1, OUTPUT); 
@@ -24,12 +156,17 @@ void setup() {
   pinMode(Echo_2, INPUT); 
   
   //Para el motor a pasos 
-  pinMode(StepMtr_ctr1, OUTPUT); 
-  pinMode(StepMtr_ctr2, OUTPUT); 
-  pinMode(StepMtr_ctr3, OUTPUT); 
-  pinMode(StepMtr_ctr4, OUTPUT);  
-  motor_y_near();
-  motor_x_near();
+  pinMode(StepMtr_ctr1, INPUT); 
+  pinMode(StepMtr_ctr2, INPUT); 
+  pinMode(StepMtr_ctr3, INPUT); 
+  pinMode(StepMtr_ctr4, INPUT);  
+
+//  Timer1.initialize(500);
+//  Timer1.attachInterrupt(ISR_func);
+  
+  motor_y_far(200);
+  motor_x_near(125);
+
 }
 
 //----------------------------------------------
@@ -37,15 +174,13 @@ void setup() {
 //----------------------------------------------
 void loop() {
 
-    int lectura, cm;
- 
-  lectura = analogRead(ir_sensor0); // lectura del sensor 0
-  cm = pow(3027.4 / lectura, 1.2134); // conversión a centímetros
-  Serial.print("Sensor 0: ");
-  Serial.println(cm); // lectura del sensor 0
-  delay(500); // tiempo de espera
-  
+//  int lectura = analogRead(ir_sensor0); // lectura del sensor 0
+//  int cm = pow(3027.4 / lectura, 1.2134); // conversión a centímetros
+//  Serial.print("Sensor 0: ");
+//  Serial.println(cm); // lectura del sensor 0
+//  delay(500); // tiempo de espera
 
+  
 //    int x = Medir_distancia_x();
 //    int y = Medir_distancia_y();
 //  Serial.print(" Distancia X: "); //Imprimimos "Distancia" sobre el Monitor Serial
@@ -177,77 +312,78 @@ void rotate_counterclockwise()  {
  }
 
 //----------------------------------------------
-//-------------Motors Reference-----------------
+//------Motors Reference Instrumentation--------
 //----------------------------------------------
-int motor_x(int ref_x)
-{
-    int i = Medir_distancia_x();
-     
-    if(i>X_MIN_LIM && i>ref_x)
-    {  //Move in
-      motor_x_near();
-    }
-    else if(i<X_MAX_LIM && i<ref_x)
-    {  //Move out
-      motor_x_far();
-    }
-    else 
-    {
-      stop_motor_x();
-      return -1;
-    }
-    return i;
-}
-int motor_y(int ref_y)
-{
-    int j = Medir_distancia_y();
-     
-    if(j>Y_MIN_LIM && j>ref_y)
-    {  //Move in
-      motor_y_near();
-    }
-    else if(j<Y_MAX_LIM && j<ref_y)
-    {  //Move out
-      motor_y_far();
-    }
-    else 
-    {
-      stop_motor_y();
-      return -1;
-    }
-    return j;
-}
+//int motor_x(int ref_x)
+//{
+//    int i = Medir_distancia_x();
+//     
+//    if(i>X_MIN_LIM && i>ref_x)
+//    {  //Move in
+//      motor_x_near();
+//    }
+//    else if(i<X_MAX_LIM && i<ref_x)
+//    {  //Move out
+//      motor_x_far();
+//    }
+//    else 
+//    {
+//      stop_motor_x();
+//      return -1;
+//    }
+//    return i;
+//}
+//int motor_y(int ref_y)
+//{
+//    int j = Medir_distancia_y();
+//     
+//    if(j>Y_MIN_LIM && j>ref_y)
+//    {  //Move in
+//      motor_y_near();
+//    }
+//    else if(j<Y_MAX_LIM && j<ref_y)
+//    {  //Move out
+//      motor_y_far();
+//    }
+//    else 
+//    {
+//      stop_motor_y();
+//      return -1;
+//    }
+//    return j;
+//}
 
 //----------------------------------------------
 //--------------Motors Movement-----------------
 //----------------------------------------------
- void motor_x_near()
+ void motor_x_near(int freq_x)
  {
-    digitalWrite(Mtr_ctr1_x,HIGH);
-    digitalWrite(Mtr_ctr2_x,LOW);
+    analogWrite(Mtr_ctr1_x,freq_x);
+    analogWrite(Mtr_ctr2_x,LOW);
  }
- void motor_x_far()
+ void motor_x_far(int freq_x)
  {
-    digitalWrite(Mtr_ctr1_x,LOW);
-    digitalWrite(Mtr_ctr2_x,HIGH);
+    analogWrite(Mtr_ctr1_x,LOW);
+    analogWrite(Mtr_ctr2_x,freq_x);
  }
  void stop_motor_x()
 {
-    digitalWrite(Mtr_ctr1_x,LOW);
-    digitalWrite(Mtr_ctr2_x,LOW);  
+    analogWrite(Mtr_ctr1_x,LOW);
+    analogWrite(Mtr_ctr2_x,LOW);  
 }
-  void motor_y_near()
+  void motor_y_near(int freq_y)
  {
-    digitalWrite(Mtr_ctr1_y,LOW);
-    digitalWrite(Mtr_ctr2_y,HIGH);
+    analogWrite(Mtr_ctr1_y,LOW);
+    analogWrite(Mtr_ctr2_y,freq_y);
  }
- void motor_y_far()
+ void motor_y_far(int freq_y)
  {
-    digitalWrite(Mtr_ctr1_y,HIGH);
-    digitalWrite(Mtr_ctr2_y,LOW);
+    analogWrite(Mtr_ctr1_y,freq_y);
+    analogWrite(Mtr_ctr2_y,LOW);
  }
 void stop_motor_y()
 {
-    digitalWrite(Mtr_ctr1_y,LOW);
-    digitalWrite(Mtr_ctr2_y,LOW);  
+    analogWrite(Mtr_ctr1_y,LOW);
+    analogWrite(Mtr_ctr2_y,LOW);  
 }
+
