@@ -1,5 +1,6 @@
 
 #include <TimerOne.h>
+#include "Adafruit_VL53L0X.h"
 
 //----------------------------------------------
 //-----------------Constants--------------------
@@ -15,9 +16,9 @@
 //----------------------------------------------
 //-------------GANANCIAS PID--------------------
 //----------------------------------------------
-#define KP        0.08    //valor de KP
-#define KI        0.005   //valor de KI
-#define KD        0.00002 //valor de KD
+#define KP        2    //valor de KP
+#define KI        0.1   //valor de KI
+#define KD        0.0 //valor de KD
 
 //----------------------------------------------
 //--------------Step Sequence-------------------
@@ -45,12 +46,14 @@ void stop_motor_x();
 void stop_motor_y();
 int motor_x(int ref);
 int motor_y(int ref_y);
+int scan();
 
 //----------------------------------------------
 //--------------Global Variables----------------
 //----------------------------------------------
 int ref_y = 15;
-int ref_x = 25;
+int ref_x = 15;
+Adafruit_VL53L0X lox = Adafruit_VL53L0X();
 
 //----------------------------------------------
 //--------------------PINS----------------------
@@ -94,7 +97,9 @@ void ISR_func() {
 //  }
 
     //ref = SIN_FUNC[counter];
-    int pos_x = Medir_distancia_x();
+    Serial.print(" Inside ");
+    int pos_x = scan();//Medir_distancia_x();
+    Serial.println(pos_x);
     ek = ref_x - pos_x;                      //Error actual
 
     if(ek==0)
@@ -112,22 +117,24 @@ void ISR_func() {
     Uk_1 = UI;                                            //Actualizar valor de la entrada
     Uk_calc = Uk;
          
-    int cicle = (255*Uk/8.5);
+    int cicle = (255*abs(Uk)/8.5);
     
     if(255<cicle) cicle = 255;
-    if(0>cicle) cicle = 0;
+    if(100>cicle) cicle = 100;
 
     if(ek>0)
     {
-      motor_x_near(cicle);
+      motor_y_far(cicle);
     }
     else if(ek<0)
     {
-      motor_x_far(cicle);
+      motor_y_near(cicle);
     }
-    
-    //Actualizar valores anterior como los actuales
-    ek_1 = ek;                                            //Actualizar valor del error
+    Serial.print(pos_x);
+    Serial.print(" - Uk: ");
+    Serial.print(Uk);
+    Serial.print(" - cicles: ");
+    Serial.println(cicle);
 }
 
 
@@ -139,14 +146,6 @@ void setup() {
   //imprimir en puerto serial
   Serial.begin(9600);
   
-//  // Para el motor 1
-//  pinMode(Mtr_ctr1_x, OUTPUT);
-//  pinMode(Mtr_ctr1_y, OUTPUT);
-//  
-//  // Para el motor 2
-//  pinMode(Mtr_ctr2_x, OUTPUT);
-//  pinMode(Mtr_ctr2_y, OUTPUT);
-
   // Para el ultrasonico 1
   pinMode(Trigger_1, OUTPUT); 
   pinMode(Echo_1, INPUT); 
@@ -156,24 +155,32 @@ void setup() {
   pinMode(Echo_2, INPUT); 
   
   //Para el motor a pasos 
-  pinMode(StepMtr_ctr1, INPUT); 
-  pinMode(StepMtr_ctr2, INPUT); 
-  pinMode(StepMtr_ctr3, INPUT); 
-  pinMode(StepMtr_ctr4, INPUT);  
+  pinMode(StepMtr_ctr1, OUTPUT); 
+  pinMode(StepMtr_ctr2, OUTPUT); 
+  pinMode(StepMtr_ctr3, OUTPUT); 
+  pinMode(StepMtr_ctr4, OUTPUT);  
+
+  // Iniciar sensor
+  Serial.println("VL53L0X test");
+  if (!lox.begin()) {
+    Serial.println(F("Error al iniciar VL53L0X"));
+    while(1);
+  }
 
 //  Timer1.initialize(500);
 //  Timer1.attachInterrupt(ISR_func);
-  
-  motor_y_far(200);
-  motor_x_near(125);
-
 }
 
 //----------------------------------------------
 //-------------------Loop-----------------------
 //----------------------------------------------
 void loop() {
-
+ISR_func();
+delay(400);
+//  scan();
+//  Serial.println(Medir_distancia_x());
+//  Serial.println("   ");
+//  delay(500);
 //  int lectura = analogRead(ir_sensor0); // lectura del sensor 0
 //  int cm = pow(3027.4 / lectura, 1.2134); // conversión a centímetros
 //  Serial.print("Sensor 0: ");
@@ -224,8 +231,8 @@ void loop() {
 //------------Distance Measurements-------------
 //----------------------------------------------
 int Medir_distancia_x(){
-  int distancia_x_array[] = {0, 0, 0, 0, 0};
-  for(int i = 1; i<=5; i++)
+  int distancia_x_array[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+  for(int i = 1; i<=10; i++)
   {
     //Para el ultrasonico 1 "x"
     digitalWrite(Trigger_1,LOW); //Para darle estabilización al sensor
@@ -248,12 +255,12 @@ int Medir_distancia_x(){
 //  Serial.println(distancia_x_array[2]);
 //  Serial.println(distancia_x_array[3]);
 //  Serial.println(distancia_x_array[4]);
-  return (int)(distancia_x_array[0]+distancia_x_array[1]+distancia_x_array[2]+distancia_x_array[3]+distancia_x_array[4])/5; 
+  return (int)(distancia_x_array[0]+distancia_x_array[1]+distancia_x_array[2]+distancia_x_array[3]+distancia_x_array[4]+distancia_x_array[5]+distancia_x_array[6]+distancia_x_array[7]+distancia_x_array[8]+distancia_x_array[9])/10; 
 }
 int Medir_distancia_y(){
-  int distancia_y_array[5] = {0, 0, 0, 0, 0};
+  int distancia_y_array[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
   int i = 0;
-  for(i = 1; i<=5; i++)
+  for(i = 1; i<=10; i++)
   {
     //Para el ultrasonico 1 "y"
     digitalWrite(Trigger_2,LOW); //Para darle estabilización al sensor
@@ -271,12 +278,28 @@ int Medir_distancia_y(){
       distancia_y_array[i-1] = (int) distancia_y;
     }
   }
-//  Serial.println(distancia_y_array[0]);
-//  Serial.println(distancia_y_array[1]);
-//  Serial.println(distancia_y_array[2]);
-//  Serial.println(distancia_y_array[3]);
-//  Serial.println(distancia_y_array[4]);
-  return (int)(distancia_y_array[0]+distancia_y_array[1]+distancia_y_array[2]+distancia_y_array[3]+distancia_y_array[4])/5; 
+  
+  return (int)(distancia_y_array[0]+distancia_y_array[1]+distancia_y_array[2]+distancia_y_array[3]+distancia_y_array[4]+distancia_y_array[5]+distancia_y_array[6]+distancia_y_array[7]+distancia_y_array[8]+distancia_y_array[9])/10; 
+}
+int scan()
+{
+  VL53L0X_RangingMeasurementData_t measure;
+    
+  //Serial.print("Leyendo sensor... ");
+  lox.rangingTest(&measure, false); // si se pasa true como parametro, muestra por puerto serie datos de debug
+ 
+  if (measure.RangeStatus != 4)
+  {
+    //Serial.print("Distancia (mm): ");
+   //Serial.println(measure.RangeMilliMeter);
+  } 
+  else
+  {
+    Serial.println("  Fuera de rango ");
+  }
+    
+  delay(100);
+  return measure.RangeMilliMeter/10;
 }
 
 //----------------------------------------------
