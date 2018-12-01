@@ -1,6 +1,23 @@
 
-#include <TimerOne.h>
 #include "Adafruit_VL53L0X.h"
+
+//----------------------------------------------
+//--------------------PINS----------------------
+//----------------------------------------------
+#define Mtr_ctr1_x   5    
+#define Mtr_ctr2_x   6    
+#define Mtr_ctr1_y   10   
+#define Mtr_ctr2_y   11    
+#define Echo_1       2    
+#define Trigger_1    3   
+#define Echo_2       7    
+#define Trigger_2    8    
+#define StepMtr_ctr1 4    
+#define StepMtr_ctr2 9   
+#define StepMtr_ctr3 12   
+#define StepMtr_ctr4 13
+#define SHT_LOX1     16       
+#define SHT_LOX2     15
 
 //----------------------------------------------
 //-----------------Constants--------------------
@@ -9,15 +26,20 @@
 #define X_MAX_LIM 30
 #define Y_MIN_LIM 10
 #define Y_MAX_LIM 25
+#define MIN_CICLE_LIM 130
+#define MAX_CICLE_LIM 255
+#define REF_SIZE 5
 #define T_STEP    0.0005  //T usada para el PID
 #define PWM1 6
 #define PWM1 5
+#define LOX1_ADDRESS 0x30
+#define LOX2_ADDRESS 0x31
 
 //----------------------------------------------
 //-------------GANANCIAS PID--------------------
 //----------------------------------------------
-#define KP        2    //valor de KP
-#define KI        0.1   //valor de KI
+#define KP        2.8    //valor de KP
+#define KI        0.0   //valor de KI
 #define KD        0.0 //valor de KD
 
 //----------------------------------------------
@@ -36,105 +58,150 @@ int paso [4][4] =
 //----------------------------------------------
 void rotate_clockwise();
 void rotate_counterclockwise();
+void read_dual_sensors();
+int scan_y_y();
+void initVL53L0X();
+void setID();
 void motor_x_near(int freq_x);
 void motor_x_far(int freq_x);
 void motor_y_near(int freq_y);
 void motor_y_far(int freq_y);
 void stop_motor_x();
 void stop_motor_y();
-int Medir_distancia_x();
-int Medir_distancia_y();
-int scan_y_y();
 
 //----------------------------------------------
 //--------------Global Variables----------------
 //----------------------------------------------
-int ref_y = 15;
-int ref_x = 15;
-Adafruit_VL53L0X lox = Adafruit_VL53L0X();
-
-//----------------------------------------------
-//--------------------PINS----------------------
-//----------------------------------------------
-int Mtr_ctr1_x   = 5;    int Mtr_ctr2_x   = 6;    
-int Mtr_ctr1_y   = 10;   int Mtr_ctr2_y   = 11;    
-int Echo_1       = 2;    int Trigger_1    = 3;   
-int Echo_2       = 7;    int Trigger_2    = 8;    
-int StepMtr_ctr1 = 4;    int StepMtr_ctr2 = 9;   
-int StepMtr_ctr3 = 12;   int StepMtr_ctr4 = 13;
+int ref_x[REF_SIZE] = {15,20,20,15,15};
+int ref_y[REF_SIZE] = {15,15,20,20,15};
+int ref_counter = 0;
+bool ref_x_pos = false;
+bool ref_y_pos = false;
+Adafruit_VL53L0X lox1 = Adafruit_VL53L0X();
+Adafruit_VL53L0X lox2 = Adafruit_VL53L0X();
 
 //----------------------------------------------
 //-----------------Variables--------------------
 //----------------------------------------------
-long distancia_x;        long tiempo_x;           
-long distancia_y;        long tiempo_y;
-int ir_sensor0 = A0;
-int counter =                     0.00;
-float ref =                       0.00; 
+long distancia_x;        long distancia_y;
+//int counter =                     0.00;
 //Errores
-float ek =                       0.0;    //Error actual
-float ek_1 =                     0.0;    //Error anterior
-//Variables del PID
-double UP =                       0.0;
-double UI =                       0.0;
-double UD =                       0.0;
+float ek_x =                       0.0;    //Error actual
+float ek_1_x =                     0.0;    //Error anterior
 //Entradas
-double Uk =                       0.0;    //Entrada actual
-double Uk_1 =                     0.0;    //Entrada pasada
-double Uk_calc =                  0.0;    //Entrada actual
+double Uk_x =                       0.0;    //Entrada actual
+double Uk_1_x =                     0.0;    //Entrada pasada
+double Uk_calc_x =                  0.0;    //Entrada actual
+//Errores
+float ek_y =                       0.0;    //Error actual
+float ek_1_y =                     0.0;    //Error anterior
+//Entradas
+double Uk_y =                       0.0;    //Entrada actual
+double Uk_1_y =                     0.0;    //Entrada pasada
+double Uk_calc_y =                  0.0;    //Entrada actual
 
 
 //----------------------------------------------
 //---------------Interrupción-------------------
 //----------------------------------------------
-void ISR_func() {
-//  counter++;
-//  if(counter >= SIN_SIZE)
-//  {
-//    counter = 1;
-//  }
+void PID_x() {
+    //Variables del PID
+    double UP_x =                       0.0;
+    double UI_x =                       0.0;
+    double UD_x =                       0.0;
+    //  counter++;
+    //  if(counter >= SIN_SIZE)
+    //  {
+    //    counter = 1;
+    //  }
 
     //ref = SIN_FUNC[counter];
-    Serial.print(" Inside ");
-    int pos_x = scan_y();//Medir_distancia_x();
-    Serial.println(pos_x);
-    ek = ref_x - pos_x;                      //Error actual
 
-    if(ek==0)
+    ek_x = ref_x[ref_counter] - distancia_x;                      //Error actual
+
+    if(ek_x==0)
     {
-      if(ref_x==25)
-        ref_x = 15;
-      else
-        ref_x = 25;   
+      stop_motor_x();
+      ref_x_pos = true;
+      return;
     }
     //PID
-    UP = KP*ek;
-    UI = (Uk_1 + KI*T_STEP*ek);
-    UD = (KD*(ek - ek_1)/T_STEP);
-    Uk = UP;// + UI + UD;//Entrada necesaria
-    Uk_1 = UI;                                            //Actualizar valor de la entrada
-    Uk_calc = Uk;
+    UP_x = KP*ek_x;
+    UI_x = (Uk_1_x + KI*T_STEP*ek_x);
+    UD_x = (KD*(ek_x - ek_1_x)/T_STEP);
+    Uk_x = UP_x + UI_x + UD_x;//Entrada necesaria
+    Uk_1_x = UI_x;                                            //Actualizar valor de la entrada
+    Uk_calc_x = Uk_x;
          
-    int cicle = (255*abs(Uk)/8.5);
+    int cicle = (MAX_CICLE_LIM*abs(Uk_x)/8.5);
     
-    if(255<cicle) cicle = 255;
-    if(100>cicle) cicle = 100;
+    if(MAX_CICLE_LIM<cicle) cicle = MAX_CICLE_LIM;
+    if(MIN_CICLE_LIM>cicle) cicle = MIN_CICLE_LIM;
 
-    if(ek>0)
+    if(ek_x>0)
+    {
+      motor_x_far(cicle);
+    }
+    else if(ek_x<0)
+    {
+      motor_x_near(cicle);
+    }
+    Serial.print("X:  ");
+    Serial.print(distancia_x);
+    Serial.print(F(" - Uk: "));
+    Serial.print(Uk_x);
+    Serial.print(F(" - cicles: "));
+    Serial.println(cicle);
+}
+void PID_y() {
+    //Variables del PID
+    double UP_y =                       0.0;
+    double UI_y =                       0.0;
+    double UD_y =                       0.0;
+    //  counter++;
+    //  if(counter >= SIN_SIZE)
+    //  {
+    //    counter = 1;
+    //  }
+
+    //ref = SIN_FUNC[counter];
+
+    ek_y = ref_y[ref_counter] - distancia_y;                      //Error actual
+
+    if(ek_y==0)
+    {
+      stop_motor_y();
+      ref_y_pos = true;
+      return;
+    }
+    //PID
+    UP_y = KP*ek_y;
+    UI_y = (Uk_1_y + KI*T_STEP*ek_y);
+    UD_y = (KD*(ek_y - ek_1_y)/T_STEP);
+    Uk_y = UP_y + UI_y + UD_y;//Entrada necesaria
+    Uk_1_y = UI_y;                                            //Actualizar valor de la entrada
+    Uk_calc_y = Uk_y;
+         
+    int cicle = (MAX_CICLE_LIM*abs(Uk_y)/8.5);
+    
+    if(MAX_CICLE_LIM<cicle) cicle = MAX_CICLE_LIM;
+    if(MIN_CICLE_LIM>cicle) cicle = MIN_CICLE_LIM;
+
+    if(ek_y>0)
     {
       motor_y_far(cicle);
     }
-    else if(ek<0)
+    else if(ek_y<0)
     {
       motor_y_near(cicle);
     }
-    Serial.print(pos_x);
-    Serial.print(" - Uk: ");
-    Serial.print(Uk);
-    Serial.print(" - cicles: ");
+    Serial.print("Y:  ");
+    Serial.print(distancia_y);
+    Serial.print(F(" - Uk: "));
+    Serial.print(Uk_y);
+    Serial.print(F(" - cicles: "));
     Serial.println(cicle);
 }
-
 
 //----------------------------------------------
 //--------------Initialization------------------
@@ -143,7 +210,18 @@ void setup() {
   //asignacion de pines 
   //imprimir en puerto serial
   Serial.begin(9600);
-  
+
+  //init distance sensors
+  while (! Serial) { delay(1); }
+  pinMode(SHT_LOX1, OUTPUT);
+  pinMode(SHT_LOX2, OUTPUT);
+  Serial.println(F("Shutdown pins inited..."));
+  digitalWrite(SHT_LOX1, LOW);
+  digitalWrite(SHT_LOX2, LOW);
+  Serial.println(F("Both in reset mode...(pins are low)"));
+  Serial.println(F("Starting..."));
+  setID();
+    
   // Para el ultrasonico 1
   pinMode(Trigger_1, OUTPUT); 
   pinMode(Echo_1, INPUT); 
@@ -157,61 +235,72 @@ void setup() {
   pinMode(StepMtr_ctr2, OUTPUT); 
   pinMode(StepMtr_ctr3, OUTPUT); 
   pinMode(StepMtr_ctr4, OUTPUT);  
-
-  // Iniciar sensor
-  Serial.println("VL53L0X test");
-  if (!lox.begin()) 
-  {
-    Serial.println(F("Error al iniciar VL53L0X"));
-    while(1);
-  }
 }
 
 //----------------------------------------------
 //-------------------Loop-----------------------
 //----------------------------------------------
 void loop() {
-  ISR_func();
+  read_dual_sensors();
+  if(!ref_x_pos)
+  {
+    PID_x();  
+  }
+  if(!ref_y_pos)
+  {
+    PID_y(); 
+  }
+  if(ref_x_pos && ref_y_pos)
+  {
+    if(ref_counter==0)
+    {
+      rotate_clockwise();
+    }
+    else if(ref_counter==5)
+    {
+      rotate_counterclockwise();
+    }
+    ref_counter++;
+    if(ref_counter==REF_SIZE)
+    {
+      ref_counter = 0;
+    }
+    ref_x_pos = false;
+    ref_y_pos = false;
+  }
   delay(400);
 }
 
 //----------------------------------------------
 //------------Distance Measurements-------------
 //----------------------------------------------
-int Medir_distancia_x(){
-  int distancia_x_array[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-  for(int i = 1; i<=10; i++)
-  {
-    //Para el ultrasonico 1 "x"
-    digitalWrite(Trigger_1,LOW); //Para darle estabilización al sensor
-    delayMicroseconds(5); //Tiempo de 5 micro segundos
-    digitalWrite(Trigger_1, HIGH); //Enviamos el pulso ultrasónico para activar el sensor
-    delayMicroseconds(10); //Con una duracion de 10 micro segundos
-    tiempo_x = pulseIn(Echo_1, HIGH); //Función para medir la longitud del pulso entrante, mide el tiempo transcurrido de ida y vuelta
-    distancia_x = int(0.017*tiempo_x); //Fórmula para calcular la distancia obteniendo un valor entero
-    if(distancia_x>35 && distancia_x<1)
-    {
-      i--;
-    }
-    else
-    {
-      distancia_x_array[i-1] = (int) distancia_x;
-    }
+void read_dual_sensors() {
+  VL53L0X_RangingMeasurementData_t measure1;
+  VL53L0X_RangingMeasurementData_t measure2;
+
+  lox1.rangingTest(&measure1, false); // pass in 'true' to get debug data printout!
+  lox2.rangingTest(&measure2, false); // pass in 'true' to get debug data printout!
+
+  // print sensor one reading
+//  Serial.print(F("1: "));
+  if(measure1.RangeStatus != 4) {     // if not out of range
+    distancia_x = (int) measure1.RangeMilliMeter/10;
+//    Serial.print(distancia_x);
+  } else {
+    Serial.println(F("1:   Out of range"));
   }
-  return (int)(distancia_x_array[0]+distancia_x_array[1]+distancia_x_array[2]+distancia_x_array[3]+distancia_x_array[4]+distancia_x_array[5]+distancia_x_array[6]+distancia_x_array[7]+distancia_x_array[8]+distancia_x_array[9])/10; 
-}
-int scan_y()
-{
-  VL53L0X_RangingMeasurementData_t measure;
-  lox.rangingTest(&measure, false); // si se pasa true como parametro, muestra por puerto serie datos de debug
-  if (measure.RangeStatus == 4)
-  {
-    Serial.println("");
-    Serial.println("  Fuera de rango ");
-    Serial.println("");
-  } 
-  delay(100);
-  return measure.RangeMilliMeter/10;
+  
+  Serial.print(" ");
+
+  // print sensor two reading
+//  Serial.print(F("2: "));
+  if(measure2.RangeStatus != 4) {
+    distancia_y = (int) measure2.RangeMilliMeter/10;
+//    Serial.print(distancia_y);
+  } else {
+    Serial.print(F("2: Out of range"));
+  }
+//  Serial.println();
 }
 
 //----------------------------------------------
@@ -219,6 +308,8 @@ int scan_y()
 //----------------------------------------------
 void rotate_clockwise()  {
   int index = 0;
+  stop_motor_x();
+  stop_motor_y();
   while(index<500)  {
   for (int i = 0; i < 4; i++)
     {
@@ -233,6 +324,8 @@ void rotate_clockwise()  {
  }
 void rotate_counterclockwise()  {
     int index = 0;
+    stop_motor_x();
+    stop_motor_y();
     while(index<500)  {
       for (int i = 3; i >= 0; i--)
       {
@@ -280,52 +373,57 @@ void stop_motor_y()
     analogWrite(Mtr_ctr2_y,LOW);  
 }
 
+//----------------------------------------------
+//----------VL53L0X Initialization--------------
+//----------------------------------------------
+void initVL53L0X()
+{
+  // wait until serial port opens for native USB devices
+  while (! Serial) { delay(1); }
 
+  pinMode(SHT_LOX1, OUTPUT);
+  pinMode(SHT_LOX2, OUTPUT);
 
-//----------------------------------------------
-//----------------------------------------------
-//----------------------------------------------
-//----------------------------------------------
-//-------Motors Reference Free Running----------
-//----------------------------------------------
-//----------------------------------------------
-//----------------------------------------------
-//----------------------------------------------
-//int motor_x(int ref_x)
-//{
-//    int i = Medir_distancia_x();
-//     
-//    if(i>X_MIN_LIM && i>ref_x)
-//    {  //Move in
-//      motor_x_near();
-//    }
-//    else if(i<X_MAX_LIM && i<ref_x)
-//    {  //Move out
-//      motor_x_far();
-//    }
-//    else 
-//    {
-//      stop_motor_x();
-//      return -1;
-//    }
-//    return i;
-//}
-//int motor_y(int ref_y)
-//{
-//    int j = Medir_distancia_y();
-//     
-//    if(j>Y_MIN_LIM && j>ref_y)
-//    {  //Move in
-//      motor_y_near();
-//    }
-//    else if(j<Y_MAX_LIM && j<ref_y)
-//    {  //Move out
-//      motor_y_far();
-//    }
-//    else 
-//    {
-//      stop_motor_y();
-//      return -1;
-//    }
-//    return j;
-//}
+  Serial.println(F("Shutdown pins inited..."));
+
+  digitalWrite(SHT_LOX1, LOW);
+  digitalWrite(SHT_LOX2, LOW);
+
+  Serial.println(F("Both in reset mode...(pins are low)"));
+  
+  
+  Serial.println(F("Starting..."));
+}
+void setID() 
+{
+  // all reset
+  digitalWrite(SHT_LOX1, LOW);    
+  digitalWrite(SHT_LOX2, LOW);
+  delay(10);
+  // all unreset
+  digitalWrite(SHT_LOX1, HIGH);
+  digitalWrite(SHT_LOX2, HIGH);
+  delay(10);
+
+  // activating LOX1 and reseting LOX2
+  digitalWrite(SHT_LOX1, HIGH);
+  digitalWrite(SHT_LOX2, LOW);
+
+  // initing LOX1
+  if(!lox1.begin(LOX1_ADDRESS)) {
+    Serial.println(F("Failed to boot first VL53L0X"));
+    while(1);
+  }
+  delay(10);
+
+  // activating LOX2
+  digitalWrite(SHT_LOX2, HIGH);
+  delay(10);
+
+  //initing LOX2
+  if(!lox2.begin(LOX2_ADDRESS)) {
+    Serial.println(F("Failed to boot second VL53L0X"));
+    while(1);
+  }
+}
+
