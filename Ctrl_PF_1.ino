@@ -4,18 +4,14 @@
 //----------------------------------------------
 //--------------------PINS----------------------
 //----------------------------------------------
-#define Mtr_ctr1_x   5    
-#define Mtr_ctr2_x   6    
-#define Mtr_ctr1_y   10   
-#define Mtr_ctr2_y   11    
-#define Echo_1       2    
-#define Trigger_1    3   
-#define Echo_2       7    
-#define Trigger_2    8    
-#define StepMtr_ctr1 4    
-#define StepMtr_ctr2 9   
-#define StepMtr_ctr3 12   
-#define StepMtr_ctr4 13
+#define Mtr_ctr1_x   6    
+#define Mtr_ctr2_x   5    
+#define Mtr_ctr1_y   11   
+#define Mtr_ctr2_y   10    
+#define StepMtr_ctr1 7    
+#define StepMtr_ctr2 8   
+#define StepMtr_ctr3 9   
+#define StepMtr_ctr4 12
 #define SHT_LOX1     16       
 #define SHT_LOX2     15
 
@@ -28,7 +24,8 @@
 #define Y_MAX_LIM 25
 #define MIN_CICLE_LIM 130
 #define MAX_CICLE_LIM 255
-#define ROTATE_LENGTH 500
+#define ROTATE_LENGTH 750
+#define PROM_SIZE 5
 #define REF_SIZE 5
 #define T_STEP    0.0005  //T usada para el PID
 #define PWM1 6
@@ -39,9 +36,9 @@
 //----------------------------------------------
 //-------------GANANCIAS PID--------------------
 //----------------------------------------------
-#define KP        3    //valor de KP
-#define KI        0.001   //valor de KI
-#define KD        0.0 //valor de KD
+float KP =          10;       //valor de KP
+float KI =          0.005;   //valor de KI
+float KD =          0.0;     //valor de KD
 
 //----------------------------------------------
 //--------------Step Sequence-------------------
@@ -74,8 +71,8 @@ void stop_motor_y();
 //----------------------------------------------
 //--------------Global Variables----------------
 //----------------------------------------------
-int ref_x[REF_SIZE] = {-1, -1, -1, -1, -1};
-int ref_y[REF_SIZE] = {-1, -1, -1, -1, -1};
+int ref_x[REF_SIZE] = {15,20,20,15,15};
+int ref_y[REF_SIZE] = {15,15,20,20,15};
 int ref_counter = 0;
 bool ref_x_pos = false;
 bool ref_y_pos = false;
@@ -85,7 +82,10 @@ Adafruit_VL53L0X lox2 = Adafruit_VL53L0X();
 //----------------------------------------------
 //-----------------Variables--------------------
 //----------------------------------------------
-long distancia_x;        long distancia_y;
+int distancia_x_array[PROM_SIZE] = {0,0,0,0,0};
+int distancia_y_array[PROM_SIZE] = {0,0,0,0,0};
+int distancia_x = 0;
+int distancia_y = 0;
 //int counter =                     0.00;
 //Errores
 float ek_x =                       0.0;    //Error actual
@@ -111,13 +111,6 @@ void PID_x() {
     double UP_x =                       0.0;
     double UI_x =                       0.0;
     double UD_x =                       0.0;
-    //  counter++;
-    //  if(counter >= SIN_SIZE)
-    //  {
-    //    counter = 1;
-    //  }
-
-    //ref = SIN_FUNC[counter];
 
     ek_x = ref_x[ref_counter] - distancia_x;                      //Error actual
 
@@ -160,13 +153,6 @@ void PID_y() {
     double UP_y =                       0.0;
     double UI_y =                       0.0;
     double UD_y =                       0.0;
-    //  counter++;
-    //  if(counter >= SIN_SIZE)
-    //  {
-    //    counter = 1;
-    //  }
-
-    //ref = SIN_FUNC[counter];
 
     ek_y = ref_y[ref_counter] - distancia_y;                      //Error actual
 
@@ -223,70 +209,63 @@ void setup() {
   Serial.println(F("Both in reset mode...(pins are low)"));
   Serial.println(F("Starting..."));
   setID();
-    
-  // Para el ultrasonico 1
-  pinMode(Trigger_1, OUTPUT); 
-  pinMode(Echo_1, INPUT); 
-
-  // Para el ultrasonico 2
-  pinMode(Trigger_2, OUTPUT); 
-  pinMode(Echo_2, INPUT); 
   
   //Para el motor a pasos 
   pinMode(StepMtr_ctr1, OUTPUT); 
   pinMode(StepMtr_ctr2, OUTPUT); 
   pinMode(StepMtr_ctr3, OUTPUT); 
   pinMode(StepMtr_ctr4, OUTPUT);  
+
+  //calculate first position
+  read_dual_sensors();
+  read_dual_sensors();
+  read_dual_sensors();
+  read_dual_sensors();
   
-  matlabSerial();
+  //matlabSerial();
 }
 
 //----------------------------------------------
 //-------------------Loop-----------------------
 //----------------------------------------------
 void loop() {
+
+  while(ref_counter==-1){delay(1000);};
   
-
-
-
-
-
-//  while(ref_counter==-1){delay(1000);};
-//  
-//  read_dual_sensors();
-//  if(!ref_x_pos && ref_x[ref_counter]!=-1)
-//  {
-//    PID_x();  
-//  }
-//  if(!ref_y_pos && ref_y[ref_counter]!=-1)
-//  {
-//    PID_y(); 
-//  }
-//  if(ref_x_pos && ref_y_pos)
-//  {
-//    if(ref_counter==0)//punto de inicio
-//    {
-//      //rotate_clockwise();
-//    }
-//    ref_counter++;
-//    if(ref_counter==REF_SIZE)//punto final
-//    {
-//      rotate_counterclockwise();
-//      ref_counter = -1;
-//    }
-//    else 
-//    {
-//      if(ref_x[ref_counter-1]!=ref_x[ref_counter])
-//      {
-//        ref_x_pos = false;  
-//      }
-//      if(ref_y[ref_counter-1]!=ref_y[ref_counter])
-//      {
-//        ref_y_pos = false;  
-//      }
-//    }
-//  }
-//  delay(400);
+  read_dual_sensors();
+  if(!ref_x_pos && ref_x[ref_counter]!=-1)
+  {
+    PID_x();  
+  }
+  if(!ref_y_pos && ref_y[ref_counter]!=-1)
+  {
+    PID_y(); 
+  }
+  if(ref_x_pos && ref_y_pos)
+  {
+    if(ref_counter==0)//punto de inicio
+    {
+      rotate_counterclockwise();
+    }
+    ref_counter++;
+    if(ref_counter==REF_SIZE)//punto final
+    {
+      rotate_clockwise();
+      ref_counter = -1;
+    }
+    else 
+    {
+      if(ref_x[ref_counter-1]!=ref_x[ref_counter])
+      {
+        ref_x_pos = false;  
+      }
+      if(ref_y[ref_counter-1]!=ref_y[ref_counter])
+      {
+        ref_y_pos = false;  
+      }
+    }
+  }
+  delay(400);
 }
 
 //----------------------------------------------
@@ -295,6 +274,9 @@ void loop() {
 void matlabSerial()
 {
   while(Serial.available() == 0);
+  KP =          Serial.read();     //valor de KP
+  KI =          Serial.read();     //valor de KI
+  KD =          Serial.read();     //valor de KD
   int vector_size = Serial.read();
   if(REF_SIZE>vector_size)
   {
@@ -320,11 +302,23 @@ void read_dual_sensors() {
 
   lox1.rangingTest(&measure1, false); // pass in 'true' to get debug data printout!
   lox2.rangingTest(&measure2, false); // pass in 'true' to get debug data printout!
+  
+  int dist_x_sum = 0;
+  int dist_y_sum = 0;
+
+  //re-order distance arrays
+  for(int i=1; i<=(PROM_SIZE-1); i++)
+  {
+    distancia_x_array[i-1] = distancia_x_array[i];
+    distancia_y_array[i-1] = distancia_y_array[i];
+    dist_x_sum = dist_x_sum +distancia_x_array[i];
+    dist_y_sum = dist_y_sum +distancia_y_array[i];
+  }
 
   // print sensor one reading
 //  Serial.print(F("1: "));
   if(measure1.RangeStatus != 4) {     // if not out of range
-    distancia_x = (int) measure1.RangeMilliMeter/10;
+    distancia_x_array[PROM_SIZE-1] = (int) measure1.RangeMilliMeter/10;
 //    Serial.print(distancia_x);
   } else {
     Serial.println(F("1:   Out of range"));
@@ -335,12 +329,14 @@ void read_dual_sensors() {
   // print sensor two reading
 //  Serial.print(F("2: "));
   if(measure2.RangeStatus != 4) {
-    distancia_y = (int) measure2.RangeMilliMeter/10;
+    distancia_y_array[PROM_SIZE-1] = (int) measure2.RangeMilliMeter/10;
 //    Serial.print(distancia_y);
   } else {
     Serial.print(F("2: Out of range"));
   }
-//  Serial.println();
+
+  distancia_x = (dist_x_sum + distancia_x_array[PROM_SIZE-1])/PROM_SIZE;
+  distancia_y = (dist_y_sum + distancia_y_array[PROM_SIZE-1])/PROM_SIZE;
 }
 
 //----------------------------------------------
