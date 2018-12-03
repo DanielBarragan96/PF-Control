@@ -28,6 +28,7 @@
 #define Y_MAX_LIM 25
 #define MIN_CICLE_LIM 130
 #define MAX_CICLE_LIM 255
+#define ROTATE_LENGTH 500
 #define REF_SIZE 5
 #define T_STEP    0.0005  //T usada para el PID
 #define PWM1 6
@@ -38,8 +39,8 @@
 //----------------------------------------------
 //-------------GANANCIAS PID--------------------
 //----------------------------------------------
-#define KP        2.8    //valor de KP
-#define KI        0.0   //valor de KI
+#define KP        3    //valor de KP
+#define KI        0.001   //valor de KI
 #define KD        0.0 //valor de KD
 
 //----------------------------------------------
@@ -56,6 +57,7 @@ int paso [4][4] =
 //----------------------------------------------
 //-----------------Functions--------------------
 //----------------------------------------------
+void matlabSerial();
 void rotate_clockwise();
 void rotate_counterclockwise();
 void read_dual_sensors();
@@ -72,8 +74,8 @@ void stop_motor_y();
 //----------------------------------------------
 //--------------Global Variables----------------
 //----------------------------------------------
-int ref_x[REF_SIZE] = {15,20,20,15,15};
-int ref_y[REF_SIZE] = {15,15,20,20,15};
+int ref_x[REF_SIZE] = {-1, -1, -1, -1, -1};
+int ref_y[REF_SIZE] = {-1, -1, -1, -1, -1};
 int ref_counter = 0;
 bool ref_x_pos = false;
 bool ref_y_pos = false;
@@ -146,7 +148,7 @@ void PID_x() {
     {
       motor_x_near(cicle);
     }
-    Serial.print("X:  ");
+    Serial.print(F("X:  "));
     Serial.print(distancia_x);
     Serial.print(F(" - Uk: "));
     Serial.print(Uk_x);
@@ -195,7 +197,7 @@ void PID_y() {
     {
       motor_y_near(cicle);
     }
-    Serial.print("Y:  ");
+    Serial.print(F("Y:  "));
     Serial.print(distancia_y);
     Serial.print(F(" - Uk: "));
     Serial.print(Uk_y);
@@ -235,40 +237,78 @@ void setup() {
   pinMode(StepMtr_ctr2, OUTPUT); 
   pinMode(StepMtr_ctr3, OUTPUT); 
   pinMode(StepMtr_ctr4, OUTPUT);  
+  
+  matlabSerial();
 }
 
 //----------------------------------------------
 //-------------------Loop-----------------------
 //----------------------------------------------
 void loop() {
-  read_dual_sensors();
-  if(!ref_x_pos)
+  
+
+
+
+
+
+//  while(ref_counter==-1){delay(1000);};
+//  
+//  read_dual_sensors();
+//  if(!ref_x_pos && ref_x[ref_counter]!=-1)
+//  {
+//    PID_x();  
+//  }
+//  if(!ref_y_pos && ref_y[ref_counter]!=-1)
+//  {
+//    PID_y(); 
+//  }
+//  if(ref_x_pos && ref_y_pos)
+//  {
+//    if(ref_counter==0)//punto de inicio
+//    {
+//      //rotate_clockwise();
+//    }
+//    ref_counter++;
+//    if(ref_counter==REF_SIZE)//punto final
+//    {
+//      rotate_counterclockwise();
+//      ref_counter = -1;
+//    }
+//    else 
+//    {
+//      if(ref_x[ref_counter-1]!=ref_x[ref_counter])
+//      {
+//        ref_x_pos = false;  
+//      }
+//      if(ref_y[ref_counter-1]!=ref_y[ref_counter])
+//      {
+//        ref_y_pos = false;  
+//      }
+//    }
+//  }
+//  delay(400);
+}
+
+//----------------------------------------------
+//--------------------Matlab--------------------
+//----------------------------------------------
+void matlabSerial()
+{
+  while(Serial.available() == 0);
+  int vector_size = Serial.read();
+  if(REF_SIZE>vector_size)
   {
-    PID_x();  
+    Serial.println(F("Cantidad de referencias mayor que REF_SIZE"));
+    while(1){};
   }
-  if(!ref_y_pos)
+  for(int i = 0; i<vector_size; i++)
   {
-    PID_y(); 
+    ref_x[i] = Serial.read();
   }
-  if(ref_x_pos && ref_y_pos)
+  for(int j = 0; j<vector_size; j++)
   {
-    if(ref_counter==0)
-    {
-      rotate_clockwise();
-    }
-    else if(ref_counter==5)
-    {
-      rotate_counterclockwise();
-    }
-    ref_counter++;
-    if(ref_counter==REF_SIZE)
-    {
-      ref_counter = 0;
-    }
-    ref_x_pos = false;
-    ref_y_pos = false;
+    ref_y[j] = Serial.read();
   }
-  delay(400);
 }
 
 //----------------------------------------------
@@ -310,7 +350,7 @@ void rotate_clockwise()  {
   int index = 0;
   stop_motor_x();
   stop_motor_y();
-  while(index<500)  {
+  while(index<ROTATE_LENGTH)  {
   for (int i = 0; i < 4; i++)
     {
       digitalWrite(StepMtr_ctr1, paso[i][0]);
@@ -326,7 +366,7 @@ void rotate_counterclockwise()  {
     int index = 0;
     stop_motor_x();
     stop_motor_y();
-    while(index<500)  {
+    while(index<ROTATE_LENGTH)  {
       for (int i = 3; i >= 0; i--)
       {
         digitalWrite(StepMtr_ctr1, paso[i][0]);
@@ -344,13 +384,27 @@ void rotate_counterclockwise()  {
 //----------------------------------------------
  void motor_x_near(int freq_x)
  {
+  if(X_MIN_LIM<distancia_x)
+  {
     analogWrite(Mtr_ctr1_x,freq_x);
-    analogWrite(Mtr_ctr2_x,LOW);
+    analogWrite(Mtr_ctr2_x,LOW); 
+  }
+  else
+  {
+    stop_motor_x();
+  }
  }
  void motor_x_far(int freq_x)
  {
+  if(X_MAX_LIM>distancia_x)
+  {
     analogWrite(Mtr_ctr1_x,LOW);
     analogWrite(Mtr_ctr2_x,freq_x);
+  }
+  else
+  {
+    stop_motor_x();
+  }
  }
  void stop_motor_x()
 {
@@ -359,13 +413,27 @@ void rotate_counterclockwise()  {
 }
   void motor_y_near(int freq_y)
  {
+  if(Y_MIN_LIM<distancia_y)
+  {
     analogWrite(Mtr_ctr1_y,LOW);
     analogWrite(Mtr_ctr2_y,freq_y);
+  }
+  else
+  {
+    stop_motor_y();
+  }
  }
  void motor_y_far(int freq_y)
  {
+  if(Y_MAX_LIM>distancia_y)
+  {
     analogWrite(Mtr_ctr1_y,freq_y);
     analogWrite(Mtr_ctr2_y,LOW);
+  }
+  else
+  {
+    stop_motor_y();
+  }
  }
 void stop_motor_y()
 {
