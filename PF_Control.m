@@ -518,11 +518,16 @@ global P1Y_C P2Y_C P3Y_C P4Y_C P5Y_C  G_P G_I G_D bandera
     end
 eje_x = 0;
 eje_y = 0;
+error_x = 0;
+error_y = 0;
 exit = 1;
 i = 1;
 while (exit)
     eje_x(i) = fread(puerto_serial,1);
     eje_y(i) = fread(puerto_serial,1);
+    pause(0.1);
+    error_x = fread(puerto_serial,1);
+    error_y = fread(puerto_serial,1);
     if 50 == eje_x(i)
         exit=0;
         break;
@@ -533,11 +538,15 @@ while (exit)
         grid; 
         set(handles.slider2,'Value', (eje_x(i)/35));
         set(handles.slider4,'Value', (eje_y(i)/35));
-        set(handles.text20,'String', 'eje_x(i)');
-        set(handles.text19,'String', 'eje_x(i)');
+        set(handles.text19,'String', eje_x(i));
+        set(handles.text20,'String', eje_y(i));
+        set(handles.text22,'String', num2str(error_x));
+        set(handles.text24,'String', num2str(error_y));
     end
     i=i+1;
     pause(0.1);
 end
+disp(error_x)
+disp(error_y)
 pause(1);
 fclose(puerto_serial);

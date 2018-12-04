@@ -242,6 +242,8 @@ void loop() {
   {
     Serial.write(distancia_x);
     Serial.write(distancia_y);
+    Serial.write((int)abs(ek_x));
+    Serial.write((int)abs(ek_y));
   }
   if(!ref_x_pos && ref_x[ref_counter]!=-1)
   {
@@ -264,6 +266,8 @@ void loop() {
   {
     Serial.write(distancia_x);
     Serial.write(distancia_y);
+    Serial.write((int)abs(ek_x));
+    Serial.write((int)abs(ek_y));
     if(ref_counter==0)//punto de inicio
     {
       rotate_counterclockwise();
