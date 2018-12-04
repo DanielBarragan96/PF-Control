@@ -20,8 +20,8 @@
 //----------------------------------------------
 #define X_MIN_LIM 5
 #define X_MAX_LIM 30
-#define Y_MIN_LIM 10
-#define Y_MAX_LIM 25
+#define Y_MIN_LIM 8
+#define Y_MAX_LIM 30
 #define MIN_CICLE_LIM 130
 #define MAX_CICLE_LIM 255
 #define ROTATE_LENGTH 750
@@ -238,13 +238,12 @@ void loop() {
   while(ref_counter==-1){delay(1000);};
   
   read_dual_sensors();
-  if(ref_counter>0)
-  {
+
     Serial.write(distancia_x);
     Serial.write(distancia_y);
     Serial.write((int)abs(ek_x));
     Serial.write((int)abs(ek_y));
-  }
+  
   if(!ref_x_pos && ref_x[ref_counter]!=-1)
   {
     PID_x();  

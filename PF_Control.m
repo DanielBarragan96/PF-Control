@@ -168,11 +168,11 @@ if isnan(P_I_X)
     set(hObject, 'String', 0);
     errordlg('Lo que introdujo no es un valor numerico','Error');
 end
-if (P_I_X<5)
+if (P_I_X<=5)
     set(hObject, 'String', 0);
     errordlg('El minimo valor a medir es de 6','Error');
 end
-if (P_I_X>35)
+if (P_I_X>=30)
     set(hObject, 'String', 0);
     errordlg('El maximo valor a medir es de 35','Error');
 end
@@ -204,11 +204,11 @@ if isnan(P_I_X)
     set(hObject, 'String', 0);
     errordlg('Lo que introdujo no es un valor numerico','Error');
 end
-if (P_I_Y<5)
+if (P_I_Y<=8)
     set(hObject, 'String', 0);
     errordlg('El minimo valor a medir es de 6','Error');
 end
-if (P_I_Y>35)
+if (P_I_Y>=30)
     set(hObject, 'String', 0);
     errordlg('El maximo valor a medir es de 35','Error');
 end
@@ -308,6 +308,11 @@ end
 function Limpiar_Callback(hObject, eventdata, handles)
 % hObject    handle to Limpiar (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
+global puerto_serial
+    puerto_serial=serial('COM10');
+    puerto_serial.Baudrate=9600;
+    warning('off','MATLAB:serial:fscanf:unsuccessfulRad');
+    fclose(puerto_serial)
 set(handles.G_P,'String','  ');
 set(handles.G_I,'String','  ');
 set(handles.G_D,'String','  ');
@@ -436,6 +441,7 @@ function Enviar_Callback(hObject, eventdata, handles)
 global distancia_1 distancia_2 P_I_X P_I_Y
 global P1X_T P2X_T P3X_T P4X_T P1Y_T P2Y_T P3Y_T P4Y_T P1X_C P2X_C P3X_C P4X_C P5X_C 
 global P1Y_C P2Y_C P3Y_C P4Y_C P5Y_C  G_P G_I G_D bandera 
+global puerto_serial
     plot(handles.axes3, zeros(1,2), zeros(1,2));
     xlim([0 35]);
     ylim([0 35]);
@@ -446,10 +452,11 @@ global P1Y_C P2Y_C P3Y_C P4Y_C P5Y_C  G_P G_I G_D bandera
     puerto_serial=serial('COM10');
     puerto_serial.Baudrate=9600;
     warning('off','MATLAB:serial:fscanf:unsuccessfulRad');
+    fclose(puerto_serial);
     fopen(puerto_serial);
     pause(3);
     if(bandera == 'tria')
-        lado_t = 4;
+        lado_t = 10;
         P1X_T = P_I_X;
         P2X_T = P_I_X + lado_t;
         P3X_T = P_I_X + lado_t/2;
@@ -548,5 +555,5 @@ while (exit)
 end
 disp(error_x)
 disp(error_y)
-pause(1);
-fclose(puerto_serial);
+% pause(1);
+% fclose(puerto_serial);
