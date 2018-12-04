@@ -144,12 +144,12 @@ void PID_x() {
     {
       motor_x_near(cicle);
     }
-    Serial.print(F("X:  "));
-    Serial.print(distancia_x);
-    Serial.print(F(" - Uk: "));
-    Serial.print(Uk_x);
-    Serial.print(F(" - cicles: "));
-    Serial.println(cicle);
+//    Serial.print(F("X:  "));
+//    Serial.print(distancia_x);
+//    Serial.print(F(" - Uk: "));
+//    Serial.print(Uk_x);
+//    Serial.print(F(" - cicles: "));
+//    Serial.println(cicle);
 }
 void PID_y() {
     //Variables del PID
@@ -186,13 +186,15 @@ void PID_y() {
     {
       motor_y_near(cicle);
     }
-    Serial.print(F("Y:  "));
-    Serial.print(distancia_y);
-    Serial.print(F(" - Uk: "));
-    Serial.print(Uk_y);
-    Serial.print(F(" - cicles: "));
-    Serial.println(cicle);
+//    Serial.print(F("Y:  "));
+//    Serial.print(distancia_y);
+//    Serial.print(F(" - Uk: "));
+//    Serial.print(Uk_y);
+//    Serial.print(F(" - cicles: "));
+//    Serial.println(cicle);
 }
+
+void(* resetFunc) (void) = 0;
 
 //----------------------------------------------
 //--------------Initialization------------------
@@ -206,11 +208,11 @@ void setup() {
   while (! Serial) { delay(1); }
   pinMode(SHT_LOX1, OUTPUT);
   pinMode(SHT_LOX2, OUTPUT);
-  Serial.println(F("Shutdown pins inited..."));
+//  Serial.println(F("Shutdown pins inited..."));
   digitalWrite(SHT_LOX1, LOW);
   digitalWrite(SHT_LOX2, LOW);
-  Serial.println(F("Both in reset mode...(pins are low)"));
-  Serial.println(F("Starting..."));
+//  Serial.println(F("Both in reset mode...(pins are low)"));
+//  Serial.println(F("Starting..."));
   setID();
   
   //Para el motor a pasos 
@@ -236,6 +238,13 @@ void loop() {
   while(ref_counter==-1){delay(1000);};
   
   read_dual_sensors();
+  if(ref_counter>0)
+  {
+    Serial.write(distancia_x);
+    Serial.write(distancia_y);
+    Serial.write((int)abs(ek_x));
+    Serial.write((int)abs(ek_y));
+  }
   if(!ref_x_pos && ref_x[ref_counter]!=-1)
   {
     PID_x();  
@@ -244,8 +253,21 @@ void loop() {
   {
     PID_y(); 
   }
+  if(ref_x[ref_counter]==-1 && ref_y[ref_counter]==-1)
+  {
+    ref_counter=REF_SIZE-1;
+    rotate_clockwise();
+    ref_counter = -1;
+    Serial.write((int) 50);
+    Serial.write((int) 50);
+    resetFunc();
+  }
   if(ref_x_pos && ref_y_pos)
   {
+    Serial.write(distancia_x);
+    Serial.write(distancia_y);
+    Serial.write((int)abs(ek_x));
+    Serial.write((int)abs(ek_y));
     if(ref_counter==0)//punto de inicio
     {
       rotate_counterclockwise();
@@ -255,6 +277,9 @@ void loop() {
     {
       rotate_clockwise();
       ref_counter = -1;
+      Serial.write((int) 50);
+      Serial.write((int) 50);
+      resetFunc();
     }
     else 
     {
@@ -328,10 +353,10 @@ void read_dual_sensors() {
     distancia_x_array[PROM_SIZE-1] = (int) measure1.RangeMilliMeter/10;
 //    Serial.print(distancia_x);
   } else {
-    Serial.println(F("1:   Out of range"));
+//    Serial.println(F("1:   Out of range"));
   }
   
-  Serial.print(" ");
+  //Serial.print(" ");
 
   // print sensor two reading
 //  Serial.print(F("2: "));
@@ -339,7 +364,7 @@ void read_dual_sensors() {
     distancia_y_array[PROM_SIZE-1] = (int) measure2.RangeMilliMeter/10;
 //    Serial.print(distancia_y);
   } else {
-    Serial.print(F("2: Out of range"));
+//    Serial.print(F("2: Out of range"));
   }
 
   distancia_x = (dist_x_sum + distancia_x_array[PROM_SIZE-1])/PROM_SIZE;
@@ -464,15 +489,13 @@ void initVL53L0X()
   pinMode(SHT_LOX1, OUTPUT);
   pinMode(SHT_LOX2, OUTPUT);
 
-  Serial.println(F("Shutdown pins inited..."));
+//  Serial.println(F("Shutdown pins inited..."));
 
   digitalWrite(SHT_LOX1, LOW);
   digitalWrite(SHT_LOX2, LOW);
 
-  Serial.println(F("Both in reset mode...(pins are low)"));
-  
-  
-  Serial.println(F("Starting..."));
+//  Serial.println(F("Both in reset mode...(pins are low)"));
+//  Serial.println(F("Starting..."));
 }
 void setID() 
 {
@@ -491,7 +514,7 @@ void setID()
 
   // initing LOX1
   if(!lox1.begin(LOX1_ADDRESS)) {
-    Serial.println(F("Failed to boot first VL53L0X"));
+//    Serial.println(F("Failed to boot first VL53L0X"));
     while(1);
   }
   delay(10);
@@ -502,7 +525,7 @@ void setID()
 
   //initing LOX2
   if(!lox2.begin(LOX2_ADDRESS)) {
-    Serial.println(F("Failed to boot second VL53L0X"));
+//    Serial.println(F("Failed to boot second VL53L0X"));
     while(1);
   }
 }
